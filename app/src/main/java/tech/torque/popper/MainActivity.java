@@ -7,21 +7,31 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity {
-
-    private ViewGroup mContentView;
-    private int[] mBalloonColors = new int[3];
-    private int mNextColor = 0, mScreenWidth, mScreenHeight;
+public class MainActivity extends AppCompatActivity implements Balloon.BalloonListener {
 
     public static final int MIN_ANIMATION_DELAY = 500;
     public static final int MAX_ANIMATION_DELAY = 1500;
     public static final int MIN_ANIMATION_DURATION = 1000;
     public static final int MAX_ANIMATION_DURATION = 8000;
-    private int mLevel;
+    public static final int NUMBER_OF_PINS = 5;
+
+    private ViewGroup mContentView;
+    private int[] mBalloonColors = new int[3];
+    private int mNextColor = 0, mScreenWidth, mScreenHeight;
+
+    private int mLevel, mScore, mPinsUsed;
+    TextView mScoreDisplay, mLevelDisplay;
+    private List<ImageView> mPinImages = new ArrayList<>();
+    private List<Balloon> mBalloons = new ArrayList<>();
 
 
     @Override
@@ -49,16 +59,67 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        mPinImages.add((ImageView) findViewById(R.id.pushpin1));
+        mPinImages.add((ImageView) findViewById(R.id.pushpin2));
+        mPinImages.add((ImageView) findViewById(R.id.pushpin3));
+        mPinImages.add((ImageView) findViewById(R.id.pushpin4));
+        mPinImages.add((ImageView) findViewById(R.id.pushpin5));
+
+        mScoreDisplay = (TextView) findViewById(R.id.score_display);
+        mLevelDisplay = (TextView) findViewById(R.id.level_display);
+
+        updateDisplay();
     }
 
     private void startLevel() {
         mLevel++;
+        updateDisplay();
         BalloonLauncher launcher = new BalloonLauncher();
         launcher.execute(mLevel);
     }
 
     public void goButtonClickHandler(View view) {
         startLevel();
+    }
+
+    @Override
+    public void popBalloon(Balloon balloon, boolean userTouch) {
+        mContentView.removeView(balloon);
+        mBalloons.remove(balloon);
+
+        if(userTouch) {
+            mScore++;
+        }
+        else {
+            mPinsUsed++;
+            if(mPinsUsed <= mPinImages.size()) {
+                mPinImages.get(mPinsUsed - 1).setImageResource(R.drawable.pin_off);
+            }
+            if(mPinsUsed == NUMBER_OF_PINS) {
+                gameOver(true);
+                return;
+            }
+            else {
+                Toast.makeText(this, "Missed that one!", Toast.LENGTH_SHORT).show();
+            }
+        }
+        updateDisplay();
+    }
+
+    private void gameOver(boolean b) {
+        Toast.makeText(this, "Game Over!", Toast.LENGTH_SHORT).show();
+        for (Balloon balloon: mBalloons
+             ) {
+            mContentView.removeView(balloon);
+            balloon.setPopped(true);
+            
+        }
+        mBalloons.clear();
+    }
+
+    private void updateDisplay() {
+        mScoreDisplay.setText(Integer.toString(mScore));
+        mLevelDisplay.setText(Integer.toString(mLevel));
     }
 
     private class BalloonLauncher extends AsyncTask<Integer, Integer, Void> {
@@ -110,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
     private void launchBalloon(int x) {
 
         Balloon balloon = new Balloon(this, mBalloonColors[mNextColor], 150);
+        mBalloons.add(balloon);
 
         mNextColor = (mNextColor + 1) % 3;
 
